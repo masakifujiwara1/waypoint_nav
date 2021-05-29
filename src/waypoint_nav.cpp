@@ -20,10 +20,11 @@
 #include <math.h>
 #include <fstream>
 #include <iostream>
-
+#include <memory>
+using namespace::std;
 typedef struct Waypoints{
   geometry_msgs::Pose pose;
-  std::string function;
+  std::string function;// 文字列リテラルyamlのfunc定義
 }Waypoints;
 
 class WaypointNav{
@@ -37,20 +38,21 @@ public:
   void run_wp();
   bool on_wp();
   void send_wp();
-  void cmdVelCallback(const geometry_msgs::Twist::ConstPtr& cmd_vel_msg);
+  void cmdVelCallback(const geometry_msgs::Twist::Ptr& cmd_vel_msg);
   bool startNavigationCallback(std_srvs::Trigger::Request &request, std_srvs::Trigger::Response &response);
   bool suspendNavigationCallback(std_srvs::Trigger::Request &request, std_srvs::Trigger::Response &response);
-
+  boost::shared_ptr<geometry_msgs::Twist> nav_vel_msg;
 // declear functions which is called by depending on "function" in yaml
   void run();
   void suspend();
-
+  void change_mode();
 private:
   actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> move_base_action_;
   std::list<Waypoints> waypoints_;
   decltype(waypoints_)::iterator current_waypoint_;
   std::string robot_frame_, world_frame_;
   std::string filename_;
+  
   bool loop_flg_;
   bool suspend_flg_;
   double dist_err_;
@@ -62,6 +64,7 @@ private:
   ros::ServiceServer start_server_, suspend_server_; 
   ros::Subscriber cmd_vel_sub_;
   ros::Publisher visualization_wp_pub_;
+  ros::Publisher nav_vel_pub;
   ros::ServiceClient clear_costmaps_srv_;
   tf2_ros::Buffer tfBuffer_;
   tf2_ros::TransformListener tfListener_;
@@ -94,7 +97,8 @@ WaypointNav::WaypointNav() :
   function_map_.insert(std::make_pair("suspend", std::bind(&WaypointNav::suspend, this)));
 
   visualization_wp_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("visualization_wp", 1);
-  cmd_vel_sub_ = nh_.subscribe("cmd_vel", 1, &WaypointNav::cmdVelCallback, this);
+  nav_vel_pub = nh_.advertise<geometry_msgs::Twist>("nav_vel", 1);
+  cmd_vel_sub_ = nh_.subscribe("cmd_vel", 1, &WaypointNav::cmdVelCallback, this);//cmd_vel or icart_mini/cmd_vel
   start_server_ = nh_.advertiseService("start_wp_nav", &WaypointNav::startNavigationCallback, this);
   suspend_server_ = nh_.advertiseService("suspend_wp_nav", &WaypointNav::suspendNavigationCallback, this);
   clear_costmaps_srv_ = nh_.serviceClient<std_srvs::Empty>("/move_base/clear_costmaps");
@@ -122,10 +126,10 @@ bool WaypointNav::read_yaml(){
       pose.position.y = points["point"]["y"].as<double>();
       pose.position.z = points["point"]["z"].as<double>();
 
-      try{
+      try{//例外を無視して実行
         function = points["point"]["function"].as<std::string>();
       }
-      catch(std::exception e){
+      catch(std::exception e){//例外処理
         ROS_WARN("function is set by default (run) because function is not set in yaml");
         function = std::string("run");
       }
@@ -271,7 +275,7 @@ void WaypointNav::send_wp(){
   last_moved_time_ = ros::Time::now().toSec();
 }
 
-void WaypointNav::cmdVelCallback(const geometry_msgs::Twist::ConstPtr& cmd_vel_msg){
+void WaypointNav::cmdVelCallback(const geometry_msgs::Twist::Ptr& cmd_vel_msg){
   if(cmd_vel_msg->linear.x > -0.001 && cmd_vel_msg->linear.x < 0.001  &&
     cmd_vel_msg->linear.y > -0.001 && cmd_vel_msg->linear.y < 0.001   &&
     cmd_vel_msg->linear.z > -0.001 && cmd_vel_msg->linear.z < 0.001   &&
@@ -284,6 +288,7 @@ void WaypointNav::cmdVelCallback(const geometry_msgs::Twist::ConstPtr& cmd_vel_m
   else{
     last_moved_time_ = ros::Time::now().toSec();
   }
+  nav_vel_msg = cmd_vel_msg;
 }
 
 bool WaypointNav::startNavigationCallback(std_srvs::Trigger::Request &request, std_srvs::Trigger::Response &response){
@@ -319,7 +324,7 @@ bool WaypointNav::suspendNavigationCallback(std_srvs::Trigger::Request &request,
 
 // This function is not main loop.
 // Main loop function's name is run_wp()
-void WaypointNav::run(){
+void WaypointNav::run(){//ネームスペースWaypointNavのrun()へ
   int resend_num = 0;
   send_wp();
   while((resend_num < resend_thresh_) && ros::ok()){
@@ -363,6 +368,11 @@ void WaypointNav::suspend(){
     ROS_INFO("Your robot will get suspend mode after moving");
     suspend_flg_ = true;
   }
+}
+void WaypointNav::change_mode(){
+  //cmd_vel受け取って,nav_velとしてリマップして渡す
+  
+  nav_vel_pub.publish(nav_vel_msg);
 }
 
 int main(int argc, char** argv){
