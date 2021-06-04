@@ -45,7 +45,7 @@ public:
 // declear functions which is called by depending on "function" in yaml
   void run();
   void suspend();
-  void change_mode();
+  void end_supend();
 private:
   actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> move_base_action_;
   std::list<Waypoints> waypoints_;
@@ -369,9 +369,9 @@ void WaypointNav::suspend(){
     suspend_flg_ = true;
   }
 }
-void WaypointNav::change_mode(){
+void WaypointNav::end_supend(){
   //cmd_vel受け取って,nav_velとしてリマップして渡す
-  
+  //suspend_flg
   nav_vel_pub.publish(nav_vel_msg);
 }
 
