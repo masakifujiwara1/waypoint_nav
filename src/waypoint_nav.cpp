@@ -373,32 +373,7 @@ void WaypointNav::end_supend(){
   //cmd_vel受け取って,nav_velとしてリマップして渡す
   //suspend_flg
   suspend_flg_ = false;
-  send_wp();
-  while((resend_num < resend_thresh_) && ros::ok()){
-    double time = ros::Time::now().toSec();
-    actionlib::SimpleClientGoalState state_ = move_base_action_.getState();
-    if(time - last_moved_time_ > wait_time_){
-      ROS_WARN("Robot can't reach this waypoint");
-      ROS_WARN("Resend this waypoint");
-      resend_num++;
-      send_wp();
-    }
-    else if(state_ == actionlib::SimpleClientGoalState::ACTIVE || 
-            state_ == actionlib::SimpleClientGoalState::PENDING){
-      ros::spinOnce();
-      rate_.sleep();
-    }
-    else if( !on_wp() || state_ == actionlib::SimpleClientGoalState::SUCCEEDED){
-      ROS_INFO("Reach target waypoint!");
-      ROS_INFO("Run next waypoint");
-      break;
-    }
-    else{
-      ROS_WARN("Robot can't reach this waypoint");
-      ROS_WARN("Resend this waypoint");
-      resend_num++;
-      send_wp();
-    }
+  run();
   nav_vel_pub.publish(nav_vel_msg);
 }
 
