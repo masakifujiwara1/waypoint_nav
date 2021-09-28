@@ -12,6 +12,7 @@
 #include <visualization_msgs/MarkerArray.h>
 #include "yaml-cpp/yaml.h"
 #include <joy_cmd/dir_cmd_msg.h>
+#include <std_msgs/Bool.h>
 #include <random>
 #include <vector>
 #include <list>
@@ -47,6 +48,7 @@ public:
 // declear functions which is called by depending on "function" in yaml
   void run();
   void suspend();
+  void reset();
   void run_go();
   void run_right();
   void run_left();
@@ -57,6 +59,7 @@ private:
   decltype(waypoints_)::iterator current_waypoint_;
   std::string robot_frame_, world_frame_;
   std::string filename_;
+  bool re_;
   bool loop_flg_;
   bool suspend_flg_;
   double dist_err_;
@@ -68,6 +71,8 @@ private:
   ros::ServiceServer start_server_, suspend_server_; 
   ros::Subscriber cmd_vel_sub_;
   ros::Publisher visualization_wp_pub_;
+  ros::Publisher reset_pub;
+  ros::Publisher joy_pub;
   ros::ServiceClient clear_costmaps_srv_;
   ros::Timer timer_;
   tf2_ros::Buffer tfBuffer_;
@@ -110,6 +115,7 @@ WaypointNav::WaypointNav() :
 
   function_map_.insert(std::make_pair("run", std::bind(&WaypointNav::run, this)));
   function_map_.insert(std::make_pair("suspend", std::bind(&WaypointNav::suspend, this)));
+  function_map_.insert(std::make_pair("reset", std::bind(&WaypointNav::suspend, this)));
   function_map_.insert(std::make_pair("run_go", std::bind(&WaypointNav::run_go, this)));
   function_map_.insert(std::make_pair("run_right", std::bind(&WaypointNav::run_right, this)));
   function_map_.insert(std::make_pair("run_left", std::bind(&WaypointNav::run_left, this)));
@@ -120,6 +126,8 @@ WaypointNav::WaypointNav() :
   suspend_server_ = nh_.advertiseService("suspend_wp_nav", &WaypointNav::suspendNavigationCallback, this);
   clear_costmaps_srv_ = nh_.serviceClient<std_srvs::Empty>("/move_base/clear_costmaps");
   timer_ = nh_.createTimer(ros::Duration(0.1),&WaypointNav::timerCallback,this);
+  reset_pub=nh_.advertise<std_msgs::Bool>("reset_pose",1);
+  joy_pub = nh_.advertise<joy_cmd::dir_cmd_msg>("cmd_data", 10);
 }
 
 bool WaypointNav::read_yaml(){
@@ -365,6 +373,7 @@ void WaypointNav::run(){
     else if( on_wp() || state_ == actionlib::SimpleClientGoalState::SUCCEEDED){
       ROS_INFO("Reach target waypoint!");
       ROS_INFO("Run next waypoint");
+      move_base_action_.cancelGoal();
       break;
     }
     else if(state_ == actionlib::SimpleClientGoalState::ACTIVE || 
@@ -375,6 +384,7 @@ void WaypointNav::run(){
       {
       cmd_data.cmd_array[i]=list[rand][i];
       }
+      joy_pub.publish(cmd_data);
       ros::spinOnce();
       rate_.sleep();
     }
@@ -401,6 +411,10 @@ void WaypointNav::suspend(){
     suspend_flg_ = true;
   }
 }
+void WaypointNav::reset(){
+  suspend();
+  reset_pub.publish(re_);
+}
 void WaypointNav::run_go(){
 int resend_num = 0;
   int i;
@@ -425,6 +439,7 @@ int resend_num = 0;
      for ( i = 0; i < 3; i++){
       cmd_data.cmd_array[i]=list[0][i];
       }
+      joy_pub.publish(cmd_data);
       ros::spinOnce();
       rate_.sleep();
     }
@@ -464,6 +479,7 @@ int resend_num = 0;
      for ( i = 0; i < 3; i++){
       cmd_data.cmd_array[i]=list[1][i];
       }
+      joy_pub.publish(cmd_data);
       ros::spinOnce();
       rate_.sleep();
     }
@@ -503,6 +519,7 @@ int resend_num = 0;
      for ( i = 0; i < 3; i++){
       cmd_data.cmd_array[i]=list[2][i];
       }
+      joy_pub.publish(cmd_data);
       ros::spinOnce();
       rate_.sleep();
     }
