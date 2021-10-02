@@ -81,7 +81,7 @@ WaypointEditor::WaypointEditor() : filename_(""), nh_(), pnh_("~"), rate_(2)
 {
     pnh_.param("filename", filename_, std::string("sample.yaml"));
     pnh_.param("map_frame",map_frame_,std::string("map"));
-    pnh_.param("function_list",function_list_,{"run","suspend","run_go","run_right","run_left"});
+    pnh_.param("function_list",function_list_,{"run","suspend","reset","run_go","run_right","run_left"});
 
     if(!read_yaml()){
         ROS_ERROR("exit waypoint editor node");

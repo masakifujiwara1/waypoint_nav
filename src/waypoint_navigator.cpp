@@ -59,7 +59,7 @@ private:
   decltype(waypoints_)::iterator current_waypoint_;
   std::string robot_frame_, world_frame_;
   std::string filename_;
-  bool re_;
+  
   bool loop_flg_;
   bool suspend_flg_;
   double dist_err_;
@@ -350,7 +350,7 @@ bool WaypointNav::suspendNavigationCallback(std_srvs::Trigger::Request &request,
 void WaypointNav::timerCallback(const ros::TimerEvent& e){
   visualize_wp();
 }
-uint64_t get_rand_range( uint64_t min_vel, uint64_t max_vel ){
+uint64_t WaypointNav::get_rand_range( uint64_t min_vel, uint64_t max_vel ){
   static std::mt19937_64 mt64(0);
   std::uniform_int_distribution<uint64_t> get_rand_uni_int( min_vel, max_vel );
   return get_rand_uni_int(mt64);
@@ -412,6 +412,8 @@ void WaypointNav::suspend(){
   }
 }
 void WaypointNav::reset(){
+  std_msgs::Bool re_;
+  re_.data=true;
   suspend();
   reset_pub.publish(re_);
 }

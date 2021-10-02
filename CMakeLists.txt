@@ -24,6 +24,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   rviz
   std_srvs
+  joy_cmd
 )
 
 find_package(PkgConfig)
@@ -93,6 +94,7 @@ target_link_libraries(
 )
 
 add_executable(waypoint_navigator src/waypoint_navigator.cpp)
+add_dependencies(waypoint_editor ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(
     waypoint_navigator
     ${catkin_LIBRARIES}
