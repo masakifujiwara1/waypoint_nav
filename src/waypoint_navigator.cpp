@@ -11,8 +11,9 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <visualization_msgs/MarkerArray.h>
 #include "yaml-cpp/yaml.h"
-#include <joy_cmd/dir_cmd_msg.h>
+//#include <joy_cmd/dir_cmd_msg.h>
 #include <std_msgs/Bool.h>
+#include <std_msgs/Int8MultiArray.h>
 #include <random>
 #include <vector>
 #include <list>
@@ -72,12 +73,14 @@ private:
   ros::Subscriber cmd_vel_sub_;
   ros::Publisher visualization_wp_pub_;
   ros::Publisher reset_pub;
-  ros::Publisher joy_pub;
-  ros::ServiceClient clear_costmaps_srv_;
+  //ros::Publisher joy_pub;
+  ros::Publisher cmd_data_pub;
+    ros::ServiceClient clear_costmaps_srv_;
   ros::Timer timer_;
   tf2_ros::Buffer tfBuffer_;
   tf2_ros::TransformListener tfListener_;
-  joy_cmd::dir_cmd_msg cmd_data;
+  std_msgs::Int8MultiArray cmd_data;
+  //joy_cmd::dir_cmd_msg cmd_data;
   std::vector<std::string> cmd_list = {"go_stright","turn_right","turn_left"};
 //std::array<int,3> data{0,0,0};
   int list[3][3]={
@@ -127,7 +130,9 @@ WaypointNav::WaypointNav() :
   clear_costmaps_srv_ = nh_.serviceClient<std_srvs::Empty>("/move_base/clear_costmaps");
   timer_ = nh_.createTimer(ros::Duration(0.1),&WaypointNav::timerCallback,this);
   reset_pub=nh_.advertise<std_msgs::Bool>("reset_pose",1);
-  joy_pub = nh_.advertise<joy_cmd::dir_cmd_msg>("cmd_data", 10);
+  cmd_data_pub = nh_.advertise<std_msgs::Int8MultiArray >("cmd_data", 10);
+  cmd_data.data.resize(3);
+  //joy_pub = nh_.advertise<joy_cmd::dir_cmd_msg>("cmd_data", 10);
 }
 
 bool WaypointNav::read_yaml(){
@@ -361,9 +366,19 @@ void WaypointNav::run(){
   int resend_num = 0;
   int i;
   send_wp();
+  
   while((resend_num < resend_thresh_) && ros::ok()){
     double time = ros::Time::now().toSec();
     actionlib::SimpleClientGoalState state_ = move_base_action_.getState();
+    int rand =get_rand_range(0,2);
+      //cmd_data.cmd_word=cmd_list[rand];
+     for ( i = 0; i < 3; i++)
+      {
+      //cmd_data.cmd_array[i]=list[rand][i];
+      cmd_data.data[i]=list[rand][i];
+      }
+      //joy_pub.publish(cmd_data);
+      cmd_data_pub.publish(cmd_data);
     if(time - last_moved_time_ > wait_time_){
       ROS_WARN("Robot can't reach this waypoint");
       ROS_WARN("Resend this waypoint");
@@ -378,13 +393,6 @@ void WaypointNav::run(){
     }
     else if(state_ == actionlib::SimpleClientGoalState::ACTIVE || 
             state_ == actionlib::SimpleClientGoalState::PENDING){
-      int rand =get_rand_range(0,2);
-      cmd_data.cmd_word=cmd_list[rand];
-     for ( i = 0; i < 3; i++)
-      {
-      cmd_data.cmd_array[i]=list[rand][i];
-      }
-      joy_pub.publish(cmd_data);
       ros::spinOnce();
       rate_.sleep();
     }
@@ -424,6 +432,14 @@ int resend_num = 0;
   while((resend_num < resend_thresh_) && ros::ok()){
     double time = ros::Time::now().toSec();
     actionlib::SimpleClientGoalState state_ = move_base_action_.getState();
+    //cmd_data.cmd_word=cmd_list[0];
+     for ( i = 0; i < 3; i++){
+      //cmd_data.cmd_array[i]=list[0][i];
+      cmd_data.data[i]=list[0][i];
+      
+      }
+      cmd_data_pub.publish(cmd_data);
+
     if(time - last_moved_time_ > wait_time_){
       ROS_WARN("Robot can't reach this waypoint");
       ROS_WARN("Resend this waypoint");
@@ -437,11 +453,6 @@ int resend_num = 0;
     }
     else if(state_ == actionlib::SimpleClientGoalState::ACTIVE || 
             state_ == actionlib::SimpleClientGoalState::PENDING){
-      cmd_data.cmd_word=cmd_list[0];
-     for ( i = 0; i < 3; i++){
-      cmd_data.cmd_array[i]=list[0][i];
-      }
-      joy_pub.publish(cmd_data);
       ros::spinOnce();
       rate_.sleep();
     }
@@ -464,6 +475,16 @@ int resend_num = 0;
   while((resend_num < resend_thresh_) && ros::ok()){
     double time = ros::Time::now().toSec();
     actionlib::SimpleClientGoalState state_ = move_base_action_.getState();
+
+    // cmd_data.cmd_word=cmd_list[1];
+     for ( i = 0; i < 3; i++){
+      // cmd_data.cmd_array[i]=list[1][i];
+      cmd_data.data[i]=list[1][i];
+
+      }
+      // joy_pub.publish(cmd_data);
+      cmd_data_pub.publish(cmd_data);
+
     if(time - last_moved_time_ > wait_time_){
       ROS_WARN("Robot can't reach this waypoint");
       ROS_WARN("Resend this waypoint");
@@ -477,11 +498,6 @@ int resend_num = 0;
     }
     else if(state_ == actionlib::SimpleClientGoalState::ACTIVE || 
             state_ == actionlib::SimpleClientGoalState::PENDING){
-      cmd_data.cmd_word=cmd_list[1];
-     for ( i = 0; i < 3; i++){
-      cmd_data.cmd_array[i]=list[1][i];
-      }
-      joy_pub.publish(cmd_data);
       ros::spinOnce();
       rate_.sleep();
     }
@@ -504,6 +520,14 @@ int resend_num = 0;
   while((resend_num < resend_thresh_) && ros::ok()){
     double time = ros::Time::now().toSec();
     actionlib::SimpleClientGoalState state_ = move_base_action_.getState();
+
+    // cmd_data.cmd_word=cmd_list[2];
+     for ( i = 0; i < 3; i++){
+      // cmd_data.cmd_array[i]=list[2][i];
+      cmd_data.data[i]=list[2][i];
+      }
+      //joy_pub.publish(cmd_data);
+      cmd_data_pub.publish(cmd_data);
     if(time - last_moved_time_ > wait_time_){
       ROS_WARN("Robot can't reach this waypoint");
       ROS_WARN("Resend this waypoint");
@@ -517,11 +541,7 @@ int resend_num = 0;
     }
     else if(state_ == actionlib::SimpleClientGoalState::ACTIVE || 
             state_ == actionlib::SimpleClientGoalState::PENDING){
-      cmd_data.cmd_word=cmd_list[2];
-     for ( i = 0; i < 3; i++){
-      cmd_data.cmd_array[i]=list[2][i];
-      }
-      joy_pub.publish(cmd_data);
+      
       ros::spinOnce();
       rate_.sleep();
     }
