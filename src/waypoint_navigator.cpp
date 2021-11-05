@@ -60,7 +60,7 @@ private:
   decltype(waypoints_)::iterator current_waypoint_;
   std::string robot_frame_, world_frame_;
   std::string filename_;
-  
+  std_msgs::Bool re_;
   bool loop_flg_;
   bool suspend_flg_;
   double dist_err_;
@@ -420,10 +420,11 @@ void WaypointNav::suspend(){
   }
 }
 void WaypointNav::reset(){
-  std_msgs::Bool re_;
+  on_wp();
   re_.data=true;
-  suspend();
+  // suspend();
   reset_pub.publish(re_);
+  send_wp();
 }
 void WaypointNav::run_go(){
 int resend_num = 0;
