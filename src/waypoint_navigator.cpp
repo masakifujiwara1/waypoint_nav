@@ -129,7 +129,7 @@ WaypointNav::WaypointNav() :
   suspend_server_ = nh_.advertiseService("suspend_wp_nav", &WaypointNav::suspendNavigationCallback, this);
   clear_costmaps_srv_ = nh_.serviceClient<std_srvs::Empty>("/move_base/clear_costmaps");
   timer_ = nh_.createTimer(ros::Duration(0.1),&WaypointNav::timerCallback,this);
-  reset_pub=nh_.advertise<std_msgs::Bool>("reset_pose",1);
+  reset_pub=nh_.advertise<std_msgs::Bool>("reset_pose",10);
   cmd_data_pub = nh_.advertise<std_msgs::Int8MultiArray >("cmd_data", 10);
   cmd_data.data.resize(3);
   //joy_pub = nh_.advertise<joy_cmd::dir_cmd_msg>("cmd_data", 10);
@@ -423,6 +423,7 @@ void WaypointNav::reset(){
   on_wp();
   re_.data=true;
   // suspend();
+  ROS_INFO("reset!!");
   reset_pub.publish(re_);
   send_wp();
 }
