@@ -45,6 +45,8 @@ public:
   void timerCallback(const ros::TimerEvent& e);
   bool startNavigationCallback(std_srvs::Trigger::Request &request, std_srvs::Trigger::Response &response);
   bool suspendNavigationCallback(std_srvs::Trigger::Request &request, std_srvs::Trigger::Response &response);
+  bool sendNavigationCallback(std_srvs::Trigger::Request &request, std_srvs::Trigger::Response &response);
+  
   uint64_t get_rand_range( uint64_t min_vel, uint64_t max_vel );
 // declear functions which is called by depending on "function" in yaml
   void run();
@@ -60,7 +62,6 @@ private:
   decltype(waypoints_)::iterator current_waypoint_;
   std::string robot_frame_, world_frame_;
   std::string filename_;
-  std_msgs::Bool re_;
   bool loop_flg_;
   bool suspend_flg_;
   double dist_err_;
@@ -69,7 +70,7 @@ private:
   int resend_thresh_;
   std::unordered_map<std::string, std::function<void(void)>> function_map_;
   ros::Rate rate_;
-  ros::ServiceServer start_server_, suspend_server_; 
+  ros::ServiceServer start_server_, suspend_server_,send_wp_server_; 
   ros::Subscriber cmd_vel_sub_;
   ros::Publisher visualization_wp_pub_;
   ros::Publisher reset_pub;
@@ -127,9 +128,10 @@ WaypointNav::WaypointNav() :
   cmd_vel_sub_ = nh_.subscribe("cmd_vel", 1, &WaypointNav::cmdVelCallback, this);
   start_server_ = nh_.advertiseService("start_wp_nav", &WaypointNav::startNavigationCallback, this);
   suspend_server_ = nh_.advertiseService("suspend_wp_nav", &WaypointNav::suspendNavigationCallback, this);
+  send_wp_server_ = nh_.advertiseService("send_wp_nav", &WaypointNav::sendNavigationCallback, this);
   clear_costmaps_srv_ = nh_.serviceClient<std_srvs::Empty>("/move_base/clear_costmaps");
   timer_ = nh_.createTimer(ros::Duration(0.1),&WaypointNav::timerCallback,this);
-  reset_pub=nh_.advertise<std_msgs::Bool>("reset_pose",10);
+  reset_pub=nh_.advertise<std_msgs::Bool>("reset_pose",1);
   cmd_data_pub = nh_.advertise<std_msgs::Int8MultiArray >("cmd_data", 10);
   cmd_data.data.resize(3);
   //joy_pub = nh_.advertise<joy_cmd::dir_cmd_msg>("cmd_data", 10);
@@ -283,10 +285,10 @@ bool WaypointNav::on_wp(){
 
 void WaypointNav::send_wp(){
   std_srvs::Empty empty;
-  while(!clear_costmaps_srv_.call(empty)) {
-    ROS_WARN("Resend clear costmap service");
-    ros::Duration(0.5).sleep();
-   }
+  // while(!clear_costmaps_srv_.call(empty)) {
+  //   ROS_WARN("Resend clear costmap service");
+  //   ros::Duration(0.5).sleep();
+  //  }
 
   move_base_msgs::MoveBaseGoal move_base_goal;
   move_base_goal.target_pose.header.stamp = ros::Time::now();
@@ -299,10 +301,10 @@ void WaypointNav::send_wp(){
 
   actionlib::SimpleClientGoalState state_ = move_base_action_.getState();
 
-  while(ros::ok() && (state_ != actionlib::SimpleClientGoalState::ACTIVE)){
-    ros::Duration(0.5);
-    state_ = move_base_action_.getState();
-  }
+  // while(ros::ok() && (state_ != actionlib::SimpleClientGoalState::ACTIVE)){
+  //   ros::Duration(0.5);
+  //   state_ = move_base_action_.getState();
+  //}
   last_moved_time_ = ros::Time::now().toSec();
 }
 
@@ -351,7 +353,10 @@ bool WaypointNav::suspendNavigationCallback(std_srvs::Trigger::Request &request,
   }
   return true;
 }
-
+bool WaypointNav::sendNavigationCallback(std_srvs::Trigger::Request &request, std_srvs::Trigger::Response &response){
+  current_waypoint_++;
+  send_wp();
+}
 void WaypointNav::timerCallback(const ros::TimerEvent& e){
   visualize_wp();
 }
@@ -420,12 +425,12 @@ void WaypointNav::suspend(){
   }
 }
 void WaypointNav::reset(){
-  on_wp();
-  re_.data=true;
+  std_msgs::Bool re;
+  re.data=true;
   // suspend();
   ROS_INFO("reset!!");
-  reset_pub.publish(re_);
-  send_wp();
+  reset_pub.publish(re);
+  run();
 }
 void WaypointNav::run_go(){
 int resend_num = 0;
